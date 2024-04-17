@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<!--
+  @author Improntus Dev Team
+  @copyright Copyright (c) 2024 Improntus (http://www.improntus.com)
+  -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Improntus\Uber\Model\Carrier\Uber">
+        <arguments>
+            <argument name="warehouseRepositories" xsi:type="array">
+                <item name="msi" xsi:type="object">Improntus\UberInventory\Model\Warehouse\SourceRepository</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Improntus\Uber\Model\CreateShipment">
+        <arguments>
+            <argument name="warehouseRepositories" xsi:type="array">
+                <item name="msi" xsi:type="object">Improntus\UberInventory\Model\Warehouse\SourceRepository</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Improntus\Uber\Model\CancelShipment">
+        <arguments>
+            <argument name="warehouseRepositories" xsi:type="array">
+                <item name="msi" xsi:type="object">Improntus\UberInventory\Model\Warehouse\SourceRepository</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Improntus\Uber\Model\Config\Source\Carriers\SourceOption">
+        <arguments>
+            <argument name="defaultOptions" xsi:type="array">
+                <item name="msi" xsi:type="string">MSI (Multi Inventory System - Default Magento)</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- Plugins -->
+    <type name="Magento\Inventory\Model\SourceRepository">
+        <plugin name="sourceRepositoryPlugin"
+                type="Improntus\UberInventory\Plugin\Inventory\Model\SourceRepositoryPlugin"/>
+    </type>
+    <type name="Magento\Inventory\Model\Source\Command\Save">
+        <plugin name="SourceSave"
+                type="Improntus\UberInventory\Plugin\SourceSave"/>
+    </type>
+    <type name="Magento\InventoryAdminUi\Ui\DataProvider\SourceDataProvider">
+        <plugin name="dataProviderLoad"
+                type="Improntus\UberInventory\Plugin\SourceDataProvider"/>
+    </type>
+
+    <!-- Source Inventory -->
+    <preference for="Improntus\UberInventory\Api\InventorySourceRepositoryInterface" type="Improntus\UberInventory\Model\InventorySourceRepository"/>
+    <preference for="Improntus\UberInventory\Api\Data\InventorySourceInterface" type="Improntus\UberInventory\Model\Source"/>
+    <preference for="Improntus\UberInventory\Api\Data\InventorySourceSearchResultInterface" type="Magento\Framework\Api\SearchResults"/>
+
+    <type name="Improntus\UberInventory\Model\ResourceModel\Source\Collection">
+        <arguments>
+            <argument name="model" xsi:type="string">Improntus\UberInventory\Model\Source</argument>
+            <argument name="resourceModel" xsi:type="string">Improntus\UberInventory\Model\ResourceModel\Source</argument>
+            <argument name="idFieldName" xsi:type="string">entity_id</argument>
+            <argument name="eventPrefix" xsi:type="string">uber_inventory_source</argument>
+            <argument name="eventObject" xsi:type="string">source_collection</argument>
+        </arguments>
+    </type>
+</config>

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!--
+  @author Improntus Dev Team
+  @copyright Copyright (c) 2024 Improntus (http://www.improntus.com)
+  -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="carriers" translate="label" type="text" showInDefault="1" showInWebsite="1" showInStore="1">
+            <group id="uber" translate="label" type="text" sortOrder="400" showInDefault="1" showInWebsite="1"
+                   showInStore="1">
+                <field id="default_source_stock" translate="label" type="select" sortOrder="45" showInDefault="1" canRestore="1">
+                    <label>Default Source Stock</label>
+                    <validate>required-entry</validate>
+                    <source_model>Improntus\UberInventory\Model\Config\Source\SourceListOption</source_model>
+                    <depends>
+                        <field id="source">waypoints</field>
+                    </depends>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

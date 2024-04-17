@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!--
+  @author Improntus Dev Team
+  @copyright Copyright (c) 2024 Improntus (http://www.improntus.com)
+  -->
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="uber_inventory_source" resource="default">
+        <column xsi:type="int" name="entity_id" unsigned="false" nullable="false" identity="true" comment="Entity ID"/>
+        <column xsi:type="varchar" name="source_code" nullable="false" comment="Source Code"/>
+        <column xsi:type="varchar" name="organization_id" nullable="false" length="255" comment="Organization Id"/>
+        <column xsi:type="varchar" name="monday_open" nullable="false" length="2" default="99" comment="Monday - Open"/>
+        <column xsi:type="varchar" name="monday_close" nullable="false" length="2" default="99"
+                comment="Monday - Close"/>
+        <column xsi:type="varchar" name="tuesday_open" nullable="false" length="2" default="99"
+                comment="Tuesday - Open"/>
+        <column xsi:type="varchar" name="tuesday_close" nullable="false" length="2" default="99"
+                comment="Tuesday - Close"/>
+        <column xsi:type="varchar" name="wednesday_open" nullable="false" length="2" default="99"
+                comment="Wednesday - Open"/>
+        <column xsi:type="varchar" name="wednesday_close" nullable="false" length="2" default="99"
+                comment="Wednesday - Close"/>
+        <column xsi:type="varchar" name="thursday_open" nullable="false" length="2" default="99"
+                comment="Thursday - Open"/>
+        <column xsi:type="varchar" name="thursday_close" nullable="false" length="2" default="99"
+                comment="Thursday - Close"/>
+        <column xsi:type="varchar" name="friday_open" nullable="false" length="2" default="99" comment="Friday - Open"/>
+        <column xsi:type="varchar" name="friday_close" nullable="false" length="2" default="99"
+                comment="Friday - Close"/>
+        <column xsi:type="varchar" name="saturday_open" nullable="false" length="2" default="99"
+                comment="Saturday - Open"/>
+        <column xsi:type="varchar" name="saturday_close" nullable="false" length="2" default="99"
+                comment="Saturday - Close"/>
+        <column xsi:type="varchar" name="sunday_open" nullable="false" length="2" default="99" comment="Sunday - Open"/>
+        <column xsi:type="varchar" name="sunday_close" nullable="false" length="2" default="99"
+                comment="Sunday - Close"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="UBER_INVENTORY_SOURCE_SOURCE_CODE">
+            <column name="source_code"/>
+        </constraint>
+    </table>
+</schema>

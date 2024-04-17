@@ -1,0 +1,46 @@
+{
+    "inventory_source": {
+        "column": {
+            "organization_id": true,
+            "monday_open": true,
+            "monday_close": true,
+            "tuesday_open": true,
+            "tuesday_close": true,
+            "wednesday_open": true,
+            "wednesday_close": true,
+            "thursday_open": true,
+            "thursday_close": true,
+            "friday_open": true,
+            "friday_close": true,
+            "saturday_open": true,
+            "saturday_close": true,
+            "sunday_open": true,
+            "sunday_close": true
+        }
+    },
+    "uber_inventory_source": {
+        "column": {
+            "entity_id": true,
+            "source_code": true,
+            "organization_id": true,
+            "monday_open": true,
+            "monday_close": true,
+            "tuesday_open": true,
+            "tuesday_close": true,
+            "wednesday_open": true,
+            "wednesday_close": true,
+            "thursday_open": true,
+            "thursday_close": true,
+            "friday_open": true,
+            "friday_close": true,
+            "saturday_open": true,
+            "saturday_close": true,
+            "sunday_open": true,
+            "sunday_close": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "UBER_INVENTORY_SOURCE_SOURCE_CODE": true
+        }
+    }
+}
