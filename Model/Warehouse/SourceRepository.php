@@ -18,8 +18,12 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 use Magento\InventoryApi\Api\Data\SourceInterface;
 use Magento\InventoryApi\Api\Data\SourceItemInterface;
+use Magento\InventoryApi\Api\GetSourcesAssignedToStockOrderedByPriorityInterface;
 use Magento\InventoryApi\Api\SourceItemRepositoryInterface;
 use Magento\InventoryApi\Api\SourceRepositoryInterface;
+use Magento\InventorySales\Model\ResourceModel\GetAssignedStockIdForWebsite;
+use Magento\Store\Api\WebsiteRepositoryInterface;
+use Magento\Store\Model\StoreRepository as StoreRepositoryInterface;
 
 class SourceRepository implements WarehouseRepositoryInterface
 {
@@ -70,6 +74,20 @@ class SourceRepository implements WarehouseRepositoryInterface
     protected StoreRepository $uberStoreRepository;
 
     /**
+     * @var StoreRepositoryInterface
+     */
+    protected StoreRepositoryInterface $storeRepository;
+
+    /** @var GetSourcesAssignedToStockOrderedByPriorityInterface */
+    protected $getSourcesByPriority;
+
+    /** @var GetAssignedStockIdForWebsite $getAssignedStockIdForWebsite */
+    protected GetAssignedStockIdForWebsite $getAssignedStockIdForWebsite;
+
+    /** @var WebsiteRepositoryInterface $websiteRepository */
+    protected WebsiteRepositoryInterface $websiteRepository;
+
+    /**
      * @param Data $helper
      * @param TimezoneInterface $timezone
      * @param SearchCriteriaBuilder $searchCriteriaBuilder
@@ -79,17 +97,25 @@ class SourceRepository implements WarehouseRepositoryInterface
      * @param SourceFactory $sourceFactory
      * @param UberStoreCollection $uberStoreCollection
      * @param StoreRepository $uberStoreRepository
+     * @param StoreRepositoryInterface $storeRepository
+     * @param WebsiteRepositoryInterface $websiteRepository
+     * @param GetAssignedStockIdForWebsite $getAssignedStockIdForWebsite
+     * @param GetSourcesAssignedToStockOrderedByPriorityInterface $getSourceByPriority
      */
     public function __construct(
-        Data                          $helper,
-        TimezoneInterface             $timezone,
-        SearchCriteriaBuilder         $searchCriteriaBuilder,
-        SourceItemRepositoryInterface $sourceItemRepository,
-        SourceRepositoryInterface     $sourceRepositoryInterface,
-        OrganizationRepository        $organizationRepository,
-        SourceFactory                 $sourceFactory,
-        UberStoreCollection           $uberStoreCollection,
-        StoreRepository               $uberStoreRepository
+        Data                                                $helper,
+        TimezoneInterface                                   $timezone,
+        SearchCriteriaBuilder                               $searchCriteriaBuilder,
+        SourceItemRepositoryInterface                       $sourceItemRepository,
+        SourceRepositoryInterface                           $sourceRepositoryInterface,
+        OrganizationRepository                              $organizationRepository,
+        SourceFactory                                       $sourceFactory,
+        UberStoreCollection                                 $uberStoreCollection,
+        StoreRepository                                     $uberStoreRepository,
+        StoreRepositoryInterface                            $storeRepository,
+        WebsiteRepositoryInterface                          $websiteRepository,
+        GetAssignedStockIdForWebsite                        $getAssignedStockIdForWebsite,
+        GetSourcesAssignedToStockOrderedByPriorityInterface $getSourceByPriority
     ) {
         $this->helper = $helper;
         $this->timezone = $timezone;
@@ -100,6 +126,10 @@ class SourceRepository implements WarehouseRepositoryInterface
         $this->sourceFactory = $sourceFactory;
         $this->uberStoreCollection = $uberStoreCollection;
         $this->uberStoreRepository = $uberStoreRepository;
+        $this->storeRepository = $storeRepository;
+        $this->getSourcesByPriority = $getSourceByPriority;
+        $this->getAssignedStockIdForWebsite = $getAssignedStockIdForWebsite;
+        $this->websiteRepository = $websiteRepository;
     }
 
     /**
@@ -120,11 +150,18 @@ class SourceRepository implements WarehouseRepositoryInterface
             ->addFilter(SourceItemInterface::SKU, $itemsSkus, 'in')
             ->create();
         $availableSources = $this->sourceItemRepository->getList($sourcesItemsSearchCriteria)->getItems();
+        $sourcesByWebsite = $this->getSourcesByWebsite($storeId);
         $sourceCodes = [];
         foreach ($availableSources as $source) {
+            $sourceSku = $source->getSku();
+            $sourceQuantity = $source->getQuantity();
+            $sourceCode = $source->getSourceCode();
             foreach ($cartItemsSku as $sku => $item) {
-                if ($source->getQuantity() >= $item && ($source->getSku() === (string)$sku)) {
-                    $sourceCodes[] = $source->getSourceCode();
+                if ($sourceQuantity >= $item &&
+                    $sourceSku === (string)$sku &&
+                    in_array($sourceCode, $sourcesByWebsite)
+                ) {
+                    $sourceCodes[] = $sourceCode;
                 }
             }
         }
@@ -142,14 +179,16 @@ class SourceRepository implements WarehouseRepositoryInterface
      */
     public function checkWarehouseWorkSchedule($warehouse, $deliveryTime): bool
     {
-        $daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        $day = strtolower($daysOfWeek[$this->timezone->date()->format('w')]);
-        $openHour = $warehouse->getData("{$day}_open");
-        $closeHour = $warehouse->getData("{$day}_close");
-        $deliveryHour = $deliveryTime->format("H");
-        // Check Waypoint Availability
-        if ($deliveryHour >= $openHour && $deliveryHour <= $closeHour) {
-            return true;
+        if ($warehouse->getIsPickupLocationActive()) {
+            $daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            $day = strtolower($daysOfWeek[$this->timezone->date()->format('w')]);
+            $openHour = $warehouse->getData("{$day}_open");
+            $closeHour = $warehouse->getData("{$day}_close");
+            $deliveryHour = $deliveryTime->format("H");
+            // Check Waypoint Availability
+            if ($deliveryHour >= $openHour && $deliveryHour <= $closeHour) {
+                return true;
+            }
         }
         return false;
     }
@@ -173,6 +212,11 @@ class SourceRepository implements WarehouseRepositoryInterface
         // Get ExternalId from UberStores
         $uberWarehouses = array_map(fn ($store) => $store['external_id'], $uberStores['stores']);
 
+        // Generate array with Source Code
+        $websiteSourcesAllowed = array_map(function ($warehouses) {
+            return $warehouses->getSourceCode();
+        }, $warehouses);
+
         /**
          * Get Sources by Uber Stores
          */
@@ -182,7 +226,8 @@ class SourceRepository implements WarehouseRepositoryInterface
                 'main_table.source_code = is.source_code'
             );
         $uberSources = $this->uberStoreCollection->addFieldToFilter("main_table.entity_id", ['in' => $uberWarehouses])
-                            ->getItems();
+            ->addFieldToFilter("main_table.source_code", ['in' => $websiteSourcesAllowed])
+            ->getItems();
 
         /**
          * Get Warehouse Closest
@@ -193,14 +238,22 @@ class SourceRepository implements WarehouseRepositoryInterface
          */
         $closestWarehouse = null;
         $alternativeWaypoint = null;
+        $deliveryTimeLocal = $this->helper->getDeliveryTime();
+        $showUberShipping = $this->helper->showUberShippingOBH();
         foreach ($uberSources as $uberStore) {
             if (in_array($uberStore->getId(), $uberWarehouses)) {
-                if ($uberStore->getId() == $uberWarehouses[0]) {
-                    $closestWarehouse = $uberStore;
-                    break;
-                } else {
-                    // Alternative Waypoint
-                    $alternativeWaypoint = $uberStore;
+                /**
+                 * Add additional information from Uber Inventory Source
+                 */
+                $populateUberInventorySource = $this->getWarehouse($uberStore->getSourceCode());
+                if ($showUberShipping || $this->checkWarehouseWorkSchedule($populateUberInventorySource, $deliveryTimeLocal)) {
+                    if ($populateUberInventorySource->getId() == $uberWarehouses[0]) {
+                        $closestWarehouse = $populateUberInventorySource;
+                        break;
+                    } else {
+                        // Alternative Waypoint
+                        $alternativeWaypoint = $populateUberInventorySource;
+                    }
                 }
             }
         }
@@ -357,5 +410,26 @@ class SourceRepository implements WarehouseRepositoryInterface
             return false;
         }
         return $uberStore->getId();
+    }
+
+    /**
+     * Get Sources MSI by Website
+     *
+     * @param $storeId
+     * @return array
+     */
+    public function getSourcesByWebsite($storeId): array
+    {
+        $store = $this->storeRepository->getById($storeId);
+        $website = $this->websiteRepository->getById($store->getWebsiteId());
+        $stockId = $this->getAssignedStockIdForWebsite->execute($website->getCode());
+        $websiteSources = $this->getSourcesByPriority->execute($stockId);
+        if ($websiteSources === null) {
+            return [];
+        }
+
+        return array_map(function ($websiteSource) {
+            return $websiteSource->getSourceCode();
+        }, $websiteSources);
     }
 }
