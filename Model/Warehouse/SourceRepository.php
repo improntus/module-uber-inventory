@@ -152,20 +152,38 @@ class SourceRepository implements WarehouseRepositoryInterface
         $availableSources = $this->sourceItemRepository->getList($sourcesItemsSearchCriteria)->getItems();
         $sourcesByWebsite = $this->getSourcesByWebsite($storeId);
         $sourceCodes = [];
+        $sourcesBySku = [];
         foreach ($availableSources as $source) {
             $sourceSku = $source->getSku();
             $sourceQuantity = $source->getQuantity();
             $sourceCode = $source->getSourceCode();
+
+            // Add source status verification, because the item could have stock but is saved as out of stock status
+            $sourceStatus = $source->getStatus();
             foreach ($cartItemsSku as $sku => $item) {
-                if ($sourceQuantity >= $item &&
+                if ($sourceStatus &&
+                    $sourceQuantity >= $item &&
                     $sourceSku === (string)$sku &&
                     in_array($sourceCode, $sourcesByWebsite)
                 ) {
-                    $sourceCodes[] = $sourceCode;
+                    $sourcesBySku[$sku][] = $sourceCode;
                 }
             }
         }
-        return $this->getSourcesWithStock($countryId, $regionId, $sourceCodes) ?: null;
+
+        // Remove the sources that don't have all skus in stock
+        foreach ($itemsSkus as $sku) {
+            if (empty($sourceCodes)) {
+                $sourceCodes = $sourcesBySku[$sku];
+            } else {
+                $sourceCodes = array_intersect($sourceCodes, $sourcesBySku[$sku]);
+            }
+        }
+
+        $result = $this->getSourcesWithStock($countryId, $regionId ?: 0, $sourceCodes) ?: null;
+        $this->helper->logDebug('Available Sources: ' . implode(',', array_keys($result)));
+        return $result;
+
     }
 
     /**
