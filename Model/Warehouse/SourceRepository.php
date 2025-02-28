@@ -450,4 +450,14 @@ class SourceRepository implements WarehouseRepositoryInterface
             return $websiteSource->getSourceCode();
         }, $websiteSources);
     }
+
+    /**
+     * getWarehouseName
+     * @param $warehouse
+     * @return mixed
+     */
+    public function getWarehouseName($warehouse): string
+    {
+        return $warehouse->getName() ?: 'n/a';
+    }
 }
