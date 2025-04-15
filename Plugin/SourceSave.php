@@ -151,7 +151,8 @@ class SourceSave
 
                 $requestData = [
                     'pickup_address'    => $addressData,
-                    'dropoff_address'   => $addressData
+                    'dropoff_address'   => $addressData,
+                    'external_store_id' => $externalStoreId
                 ];
 
                 // Send Request
