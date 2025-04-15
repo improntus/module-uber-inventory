@@ -181,7 +181,11 @@ class SourceRepository implements WarehouseRepositoryInterface
         }
 
         $result = $this->getSourcesWithStock($countryId, $regionId ?: 0, $sourceCodes) ?: null;
-        $this->helper->logDebug('Available Sources: ' . implode(',', array_keys($result)));
+        if (is_array($result)) {
+            $this->helper->logDebug('Available Sources: ' . implode(',', array_keys($result)));
+        } else {
+            $this->helper->logDebug('Available Sources: none');
+        }
         return $result;
 
     }
