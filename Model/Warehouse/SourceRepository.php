@@ -455,9 +455,14 @@ class SourceRepository implements WarehouseRepositoryInterface
             return [];
         }
 
+        // Get ONLY Sources Enabled
+        $websiteSourcesEnabled = array_filter($websiteSources, function ($websiteSource) {
+            return $websiteSource->getEnabled() == 1;
+        });
+
         return array_map(function ($websiteSource) {
             return $websiteSource->getSourceCode();
-        }, $websiteSources);
+        }, $websiteSourcesEnabled);
     }
 
     /**
