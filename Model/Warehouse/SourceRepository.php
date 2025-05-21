@@ -174,9 +174,14 @@ class SourceRepository implements WarehouseRepositoryInterface
         // Remove the sources that don't have all skus in stock
         foreach ($itemsSkus as $sku) {
             if (empty($sourceCodes)) {
-                $sourceCodes = $sourcesBySku[$sku];
+                if(in_array($sku, array_keys($sourcesBySku))) {
+                    $sourceCodes = $sourcesBySku[$sku];
+                } else {
+                    // NO STOCK FOUND
+                    return null;
+                }
             } else {
-                $sourceCodes = array_intersect($sourceCodes, $sourcesBySku[$sku]);
+                $sourceCodes = array_intersect($sourceCodes, $sourcesBySku[$sku] ?? array());
             }
         }
 
