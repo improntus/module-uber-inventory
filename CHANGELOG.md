@@ -1,10 +1,8 @@
 CHANGELOG
 ---------
 
-### 1.0.4 - 2025-03-17
+### 1.0.3 - 2025-05-23
 - Added: A functionality is added that allows writing an Order History with the Warehouse assigned to the order.
-
-### 1.0.3 - 2025-02-13
 - Update: SourceRepository
 
 ### 1.0.2 - 2024-08-26
