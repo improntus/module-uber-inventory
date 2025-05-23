@@ -174,14 +174,23 @@ class SourceRepository implements WarehouseRepositoryInterface
         // Remove the sources that don't have all skus in stock
         foreach ($itemsSkus as $sku) {
             if (empty($sourceCodes)) {
-                $sourceCodes = $sourcesBySku[$sku];
+                if(in_array($sku, array_keys($sourcesBySku))) {
+                    $sourceCodes = $sourcesBySku[$sku];
+                } else {
+                    // NO STOCK FOUND
+                    return null;
+                }
             } else {
-                $sourceCodes = array_intersect($sourceCodes, $sourcesBySku[$sku]);
+                $sourceCodes = array_intersect($sourceCodes, $sourcesBySku[$sku] ?? array());
             }
         }
 
         $result = $this->getSourcesWithStock($countryId, $regionId ?: 0, $sourceCodes) ?: null;
-        $this->helper->logDebug('Available Sources: ' . implode(',', array_keys($result)));
+        if (is_array($result)) {
+            $this->helper->logDebug('Available Sources: ' . implode(',', array_keys($result)));
+        } else {
+            $this->helper->logDebug('Available Sources: none');
+        }
         return $result;
 
     }
@@ -446,8 +455,23 @@ class SourceRepository implements WarehouseRepositoryInterface
             return [];
         }
 
+        // Get ONLY Sources Enabled
+        $websiteSourcesEnabled = array_filter($websiteSources, function ($websiteSource) {
+            return $websiteSource->getEnabled() == 1;
+        });
+
         return array_map(function ($websiteSource) {
             return $websiteSource->getSourceCode();
-        }, $websiteSources);
+        }, $websiteSourcesEnabled);
+    }
+
+    /**
+     * getWarehouseName
+     * @param $warehouse
+     * @return mixed
+     */
+    public function getWarehouseName($warehouse): string
+    {
+        return $warehouse->getName() ?: 'n/a';
     }
 }
