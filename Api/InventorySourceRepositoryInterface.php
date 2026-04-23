@@ -2,7 +2,7 @@
 
 /**
  * @author Improntus Dev Team
- * @copyright Copyright (c) 2024 Improntus (http://www.improntus.com)
+ * @copyright Copyright (c) 2026 Improntus (http://www.improntus.com)
  */
 
 namespace Improntus\UberInventory\Api;

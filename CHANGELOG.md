@@ -1,6 +1,9 @@
 CHANGELOG
 ---------
 
+### 1.0.5 - 2026-04-23
+- Updated PHP version constraint in `composer.json` from `>=7.4.0, <8.4.0` to `>=7.4` to support current and future PHP versions (8.4+).
+
 ### 1.0.4 - 2025-05-23
 - Added: A functionality is added that allows writing an Order History with the Warehouse assigned to the order.
 
