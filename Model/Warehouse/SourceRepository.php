@@ -10,8 +10,9 @@ use Exception;
 use Improntus\Uber\Api\WarehouseRepositoryInterface;
 use Improntus\Uber\Helper\Data;
 use Improntus\Uber\Model\OrganizationRepository;
-use Improntus\Uber\Model\ResourceModel\Store\Collection as UberStoreCollection;
+use Improntus\Uber\Model\ResourceModel\Store\CollectionFactory as UberStoreCollectionFactory;
 use Improntus\Uber\Model\StoreRepository;
+use Improntus\UberInventory\Api\InventorySourceRepositoryInterface;
 use Improntus\UberInventory\Model\SourceFactory;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -64,9 +65,14 @@ class SourceRepository implements WarehouseRepositoryInterface
     protected SourceFactory $sourceFactory;
 
     /**
-     * @var UberStoreCollection $uberStoreCollection
+     * @var UberStoreCollectionFactory $uberStoreCollectionFactory
      */
-    protected UberStoreCollection $uberStoreCollection;
+    protected UberStoreCollectionFactory $uberStoreCollectionFactory;
+
+    /**
+     * @var InventorySourceRepositoryInterface $inventorySourceRepository
+     */
+    protected InventorySourceRepositoryInterface $inventorySourceRepository;
 
     /**
      * @var StoreRepository $uberStoreRepository
@@ -95,7 +101,8 @@ class SourceRepository implements WarehouseRepositoryInterface
      * @param SourceRepositoryInterface $sourceRepositoryInterface
      * @param OrganizationRepository $organizationRepository
      * @param SourceFactory $sourceFactory
-     * @param UberStoreCollection $uberStoreCollection
+     * @param UberStoreCollectionFactory $uberStoreCollectionFactory
+     * @param InventorySourceRepositoryInterface $inventorySourceRepository
      * @param StoreRepository $uberStoreRepository
      * @param StoreRepositoryInterface $storeRepository
      * @param WebsiteRepositoryInterface $websiteRepository
@@ -110,7 +117,8 @@ class SourceRepository implements WarehouseRepositoryInterface
         SourceRepositoryInterface                           $sourceRepositoryInterface,
         OrganizationRepository                              $organizationRepository,
         SourceFactory                                       $sourceFactory,
-        UberStoreCollection                                 $uberStoreCollection,
+        UberStoreCollectionFactory                          $uberStoreCollectionFactory,
+        InventorySourceRepositoryInterface                  $inventorySourceRepository,
         StoreRepository                                     $uberStoreRepository,
         StoreRepositoryInterface                            $storeRepository,
         WebsiteRepositoryInterface                          $websiteRepository,
@@ -124,7 +132,8 @@ class SourceRepository implements WarehouseRepositoryInterface
         $this->sourceRepositoryInterface = $sourceRepositoryInterface;
         $this->organizationRepository = $organizationRepository;
         $this->sourceFactory = $sourceFactory;
-        $this->uberStoreCollection = $uberStoreCollection;
+        $this->uberStoreCollectionFactory = $uberStoreCollectionFactory;
+        $this->inventorySourceRepository = $inventorySourceRepository;
         $this->uberStoreRepository = $uberStoreRepository;
         $this->storeRepository = $storeRepository;
         $this->getSourcesByPriority = $getSourceByPriority;
@@ -239,22 +248,35 @@ class SourceRepository implements WarehouseRepositoryInterface
         // Get ExternalId from UberStores
         $uberWarehouses = array_map(fn ($store) => $store['external_id'], $uberStores['stores']);
 
-        // Generate array with Source Code
-        $websiteSourcesAllowed = array_map(function ($warehouses) {
-            return $warehouses->getSourceCode();
-        }, $warehouses);
+        // Index the already loaded MSI sources by their code
+        $warehousesBySourceCode = [];
+        foreach ($warehouses as $warehouse) {
+            $warehousesBySourceCode[$warehouse->getSourceCode()] = $warehouse;
+        }
+        $websiteSourcesAllowed = array_keys($warehousesBySourceCode);
 
         /**
          * Get Sources by Uber Stores
+         *
+         * A fresh collection is created on every call: this method runs more than once per request
+         * and reusing a shared instance would duplicate the join and accumulate the filters.
          */
-        $this->uberStoreCollection->getSelect()
+        $uberStoreCollection = $this->uberStoreCollectionFactory->create();
+        $uberStoreCollection->getSelect()
             ->join(
                 ["is" => "inventory_source"],
                 'main_table.source_code = is.source_code'
             );
-        $uberSources = $this->uberStoreCollection->addFieldToFilter("main_table.entity_id", ['in' => $uberWarehouses])
+        $uberSources = $uberStoreCollection->addFieldToFilter("main_table.entity_id", ['in' => $uberWarehouses])
             ->addFieldToFilter("main_table.source_code", ['in' => $websiteSourcesAllowed])
             ->getItems();
+
+        /**
+         * Load the Uber attributes of every candidate in a single query instead of once per iteration
+         */
+        $uberSourcesData = $this->getUberSourcesData(
+            array_map(fn ($uberStore) => $uberStore->getSourceCode(), $uberSources)
+        );
 
         /**
          * Get Warehouse Closest
@@ -272,7 +294,16 @@ class SourceRepository implements WarehouseRepositoryInterface
                 /**
                  * Add additional information from Uber Inventory Source
                  */
-                $populateUberInventorySource = $this->getWarehouse($uberStore->getSourceCode());
+                $sourceCode = $uberStore->getSourceCode();
+                $populateUberInventorySource = $warehousesBySourceCode[$sourceCode] ?? null;
+                if ($populateUberInventorySource === null) {
+                    $populateUberInventorySource = $this->getWarehouse($sourceCode);
+                } else {
+                    $this->populateUberData($populateUberInventorySource, $uberSourcesData[$sourceCode] ?? []);
+                }
+                if ($populateUberInventorySource === null) {
+                    continue;
+                }
                 if ($showUberShipping || $this->checkWarehouseWorkSchedule($populateUberInventorySource, $deliveryTimeLocal)) {
                     if ($populateUberInventorySource->getId() == $uberWarehouses[0]) {
                         $closestWarehouse = $populateUberInventorySource;
@@ -319,10 +350,17 @@ class SourceRepository implements WarehouseRepositoryInterface
      */
     public function getWarehouseOrganization($warehouse)
     {
-        // Get Warehouse full data
-        $warehouse = $this->getWarehouse($warehouse->getSourceCode());
         $organizationId = $warehouse->getOrganizationId();
-        if (str_contains($organizationId, 'W') !== false) {
+        if ($organizationId === null || $organizationId === '') {
+            // The warehouse was not hydrated with the Uber attributes yet, load its full data
+            $warehouse = $this->getWarehouse($warehouse->getSourceCode());
+            $organizationId = $warehouse === null ? null : $warehouse->getOrganizationId();
+        }
+        if ($organizationId === null || $organizationId === '') {
+            throw new Exception(__("Warehouse Repository Missing Organization"));
+        }
+        $organizationId = (string)$organizationId;
+        if (str_contains($organizationId, 'W')) {
             // Use ROOT Organization from Shipping Configuration
             [$letter, $websiteId] = explode('W', $organizationId);
             return $this->helper->getCustomerId($websiteId, 'website');
@@ -333,6 +371,53 @@ class SourceRepository implements WarehouseRepositoryInterface
             throw new Exception(__("Warehouse Repository Missing Organization"));
         }
         return $organizationModel->getUberOrganizationId();
+    }
+
+    /**
+     * getUberSourcesData
+     *
+     * Load the uber_inventory_source rows of several sources in a single query
+     *
+     * @param array $sourceCodes
+     * @return array
+     */
+    private function getUberSourcesData(array $sourceCodes): array
+    {
+        $sourceCodes = array_values(array_unique(array_filter($sourceCodes)));
+        if ($sourceCodes === []) {
+            return [];
+        }
+
+        $searchCriteria = $this->searchCriteriaBuilder
+            ->addFilter('source_code', $sourceCodes, 'in')
+            ->create();
+
+        $uberSourcesData = [];
+        foreach ($this->inventorySourceRepository->getList($searchCriteria)->getItems() as $inventorySource) {
+            $uberSourcesData[$inventorySource->getData('source_code')] = $inventorySource->getData();
+        }
+
+        return $uberSourcesData;
+    }
+
+    /**
+     * populateUberData
+     *
+     * Copy the Uber attributes of a source onto its MSI representation
+     *
+     * @param $source
+     * @param array $uberData
+     * @return mixed
+     */
+    private function populateUberData($source, array $uberData)
+    {
+        foreach ($uberData as $key => $value) {
+            if (in_array($key, ['entity_id', 'source_code'], true)) {
+                continue;
+            }
+            $source->setData($key, $value);
+        }
+        return $source;
     }
 
     /**
@@ -362,13 +447,7 @@ class SourceRepository implements WarehouseRepositoryInterface
             $source = $this->sourceRepositoryInterface->get($warehouseId);
             $sourceData = $this->sourceFactory->create();
             $sourceData->load($source->getSourceCode(), 'source_code');
-            foreach ($sourceData->getData() as $key => $value) {
-                if (in_array($key, ['entity_id', 'source_code'])) {
-                    continue;
-                }
-                $source->setData($key, $value);
-            }
-            return $source;
+            return $this->populateUberData($source, $sourceData->getData());
         } catch (NoSuchEntityException $e) {
             return null;
         }

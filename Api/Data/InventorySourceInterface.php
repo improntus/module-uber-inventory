@@ -50,15 +50,15 @@ interface InventorySourceInterface
     public function setSourceCode(string $sourceCode);
 
     /**
-     * @return mixed
+     * @return string|null
      */
     public function getOrganizationId();
 
     /**
-     * @param int $organizationId
+     * @param string $organizationId
      * @return mixed
      */
-    public function setOrganizationId(int $organizationId);
+    public function setOrganizationId(string $organizationId);
 
     /**
      * @return mixed
@@ -66,10 +66,10 @@ interface InventorySourceInterface
     public function getMondayOpen();
 
     /**
-     * @param int $mondayOpen
+     * @param string $mondayOpen
      * @return mixed
      */
-    public function setMondayOpen(int $mondayOpen);
+    public function setMondayOpen(string $mondayOpen);
 
     /**
      * @return mixed
@@ -77,10 +77,10 @@ interface InventorySourceInterface
     public function getMondayClose();
 
     /**
-     * @param int $mondayClose
+     * @param string $mondayClose
      * @return mixed
      */
-    public function setMondayClose(int $mondayClose);
+    public function setMondayClose(string $mondayClose);
 
     /**
      * @return mixed
@@ -88,10 +88,10 @@ interface InventorySourceInterface
     public function getTuesdayOpen();
 
     /**
-     * @param int $tuesdayOpen
+     * @param string $tuesdayOpen
      * @return mixed
      */
-    public function setTuesdayOpen(int $tuesdayOpen);
+    public function setTuesdayOpen(string $tuesdayOpen);
 
     /**
      * @return mixed
@@ -99,10 +99,10 @@ interface InventorySourceInterface
     public function getTuesdayClose();
 
     /**
-     * @param int $tuesdayClose
+     * @param string $tuesdayClose
      * @return mixed
      */
-    public function setTuesdayClose(int $tuesdayClose);
+    public function setTuesdayClose(string $tuesdayClose);
 
     /**
      * @return mixed
@@ -110,10 +110,10 @@ interface InventorySourceInterface
     public function getWednesdayOpen();
 
     /**
-     * @param int $wednesdayOpen
+     * @param string $wednesdayOpen
      * @return mixed
      */
-    public function setWednesdayOpen(int $wednesdayOpen);
+    public function setWednesdayOpen(string $wednesdayOpen);
 
     /**
      * @return mixed
@@ -121,10 +121,10 @@ interface InventorySourceInterface
     public function getWednesdayClose();
 
     /**
-     * @param int $wednesdayClose
+     * @param string $wednesdayClose
      * @return mixed
      */
-    public function setWednesdayClose(int $wednesdayClose);
+    public function setWednesdayClose(string $wednesdayClose);
 
     /**
      * @return mixed
@@ -132,10 +132,10 @@ interface InventorySourceInterface
     public function getThursdayOpen();
 
     /**
-     * @param int $thursdayOpen
+     * @param string $thursdayOpen
      * @return mixed
      */
-    public function setThursdayOpen(int $thursdayOpen);
+    public function setThursdayOpen(string $thursdayOpen);
 
     /**
      * @return mixed
@@ -143,10 +143,10 @@ interface InventorySourceInterface
     public function getThursdayClose();
 
     /**
-     * @param int $thursdayClose
+     * @param string $thursdayClose
      * @return mixed
      */
-    public function setThursdayClose(int $thursdayClose);
+    public function setThursdayClose(string $thursdayClose);
 
     /**
      * @return mixed
@@ -154,10 +154,10 @@ interface InventorySourceInterface
     public function getFridayOpen();
 
     /**
-     * @param int $fridayOpen
+     * @param string $fridayOpen
      * @return mixed
      */
-    public function setFridayOpen(int $fridayOpen);
+    public function setFridayOpen(string $fridayOpen);
 
     /**
      * @return mixed
@@ -165,10 +165,10 @@ interface InventorySourceInterface
     public function getFridayClose();
 
     /**
-     * @param int $fridayClose
+     * @param string $fridayClose
      * @return mixed
      */
-    public function setFridayClose(int $fridayClose);
+    public function setFridayClose(string $fridayClose);
 
     /**
      * @return mixed
@@ -176,10 +176,10 @@ interface InventorySourceInterface
     public function getSaturdayOpen();
 
     /**
-     * @param int $saturdayOpen
+     * @param string $saturdayOpen
      * @return mixed
      */
-    public function setSaturdayOpen(int $saturdayOpen);
+    public function setSaturdayOpen(string $saturdayOpen);
 
     /**
      * @return mixed
@@ -187,10 +187,10 @@ interface InventorySourceInterface
     public function getSaturdayClose();
 
     /**
-     * @param int $sundayClose
+     * @param string $sundayClose
      * @return mixed
      */
-    public function setSaturdayClose(int $sundayClose);
+    public function setSaturdayClose(string $sundayClose);
 
     /**
      * @return mixed
@@ -198,10 +198,10 @@ interface InventorySourceInterface
     public function getSundayOpen();
 
     /**
-     * @param int $sundayOpen
+     * @param string $sundayOpen
      * @return mixed
      */
-    public function setSundayOpen(int $sundayOpen);
+    public function setSundayOpen(string $sundayOpen);
 
     /**
      * @return mixed
@@ -209,8 +209,8 @@ interface InventorySourceInterface
     public function getSundayClose();
 
     /**
-     * @param int $sundayClose
+     * @param string $sundayClose
      * @return mixed
      */
-    public function setSundayClose(int $sundayClose);
+    public function setSundayClose(string $sundayClose);
 }

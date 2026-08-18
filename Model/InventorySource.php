@@ -67,7 +67,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setOrganizationId(int $organizationId)
+    public function setOrganizationId(string $organizationId)
     {
         return $this->setData(InventorySourceInterface::ORGANIZATION_ID, $organizationId);
     }
@@ -83,7 +83,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setMondayOpen(int $mondayOpen)
+    public function setMondayOpen(string $mondayOpen)
     {
         return $this->setData(InventorySourceInterface::MONDAY_OPEN, $mondayOpen);
     }
@@ -99,7 +99,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setMondayClose(int $mondayClose)
+    public function setMondayClose(string $mondayClose)
     {
         return $this->setData(InventorySourceInterface::MONDAY_CLOSE, $mondayClose);
     }
@@ -115,7 +115,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setTuesdayOpen(int $tuesdayOpen)
+    public function setTuesdayOpen(string $tuesdayOpen)
     {
         return $this->setData(InventorySourceInterface::TUESDAY_OPEN, $tuesdayOpen);
     }
@@ -131,7 +131,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setTuesdayClose(int $tuesdayClose)
+    public function setTuesdayClose(string $tuesdayClose)
     {
         return $this->setData(InventorySourceInterface::TUESDAY_CLOSE, $tuesdayClose);
     }
@@ -147,7 +147,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setWednesdayOpen(int $wednesdayOpen)
+    public function setWednesdayOpen(string $wednesdayOpen)
     {
         return $this->setData(InventorySourceInterface::WEDNESDAY_OPEN, $wednesdayOpen);
     }
@@ -163,7 +163,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setWednesdayClose(int $wednesdayClose)
+    public function setWednesdayClose(string $wednesdayClose)
     {
         return $this->setData(InventorySourceInterface::WEDNESDAY_CLOSE, $wednesdayClose);
     }
@@ -179,7 +179,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setThursdayOpen(int $thursdayOpen)
+    public function setThursdayOpen(string $thursdayOpen)
     {
         return $this->setData(InventorySourceInterface::THURSDAY_OPEN, $thursdayOpen);
     }
@@ -195,7 +195,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setThursdayClose(int $thursdayClose)
+    public function setThursdayClose(string $thursdayClose)
     {
         return $this->setData(InventorySourceInterface::THURSDAY_CLOSE, $thursdayClose);
     }
@@ -211,7 +211,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setFridayOpen(int $fridayOpen)
+    public function setFridayOpen(string $fridayOpen)
     {
         return $this->setData(InventorySourceInterface::FRIDAY_OPEN, $fridayOpen);
     }
@@ -227,7 +227,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setFridayClose(int $fridayClose)
+    public function setFridayClose(string $fridayClose)
     {
         return $this->setData(InventorySourceInterface::FRIDAY_CLOSE, $fridayClose);
     }
@@ -243,7 +243,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setSaturdayOpen(int $saturdayOpen)
+    public function setSaturdayOpen(string $saturdayOpen)
     {
         return $this->setData(InventorySourceInterface::SATURDAY_OPEN, $saturdayOpen);
     }
@@ -259,7 +259,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setSaturdayClose(int $sundayClose)
+    public function setSaturdayClose(string $sundayClose)
     {
         return $this->setData(InventorySourceInterface::SATURDAY_CLOSE, $sundayClose);
     }
@@ -275,7 +275,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setSundayOpen(int $sundayOpen)
+    public function setSundayOpen(string $sundayOpen)
     {
         return $this->setData(InventorySourceInterface::SUNDAY_OPEN, $sundayOpen);
     }
@@ -291,7 +291,7 @@ class InventorySource extends AbstractModel implements InventorySourceInterface
     /**
      * @inheritDoc
      */
-    public function setSundayClose(int $sundayClose)
+    public function setSundayClose(string $sundayClose)
     {
         return $this->setData(InventorySourceInterface::SUNDAY_CLOSE, $sundayClose);
     }

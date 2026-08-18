@@ -6,36 +6,12 @@
 
 namespace Improntus\UberInventory\Model;
 
-use Improntus\UberInventory\Model\ResourceModel\Source as SourceResourceModel;
-use Magento\Framework\Model\AbstractModel;
-
-class Source extends AbstractModel
+/**
+ * Backward-compatible alias of InventorySource.
+ *
+ * Kept so existing references to this class and to its generated SourceFactory keep working while
+ * the canonical implementation (and the InventorySourceInterface contract) lives in InventorySource.
+ */
+class Source extends InventorySource
 {
-    /**
-     * @var string
-     */
-    public const CACHE_TAG = 'uber_inventory_source';
-
-    /**
-     * @var string
-     */
-    protected $_cacheTag = self::CACHE_TAG;
-
-    /**
-     * @var string $_eventPrefix
-     */
-    protected $_eventPrefix = 'uber_inventory_source';
-
-    /**
-     * @var string $_eventObject
-     */
-    protected $_eventObject = 'source';
-
-    /**
-     * @return void
-     */
-    protected function _construct()
-    {
-        $this->_init(SourceResourceModel::class);
-    }
 }

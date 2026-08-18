@@ -23,6 +23,39 @@ use Magento\InventoryApi\Api\Data\SourceInterface;
 class SourceSave
 {
     /**
+     * Keys redacted from a logged Uber response.
+     *
+     * Mirrors Improntus\Uber\Model\Uber::RESPONSE_REDACT_KEYS, which is private and therefore not
+     * reachable from here.
+     *
+     * @var string[]
+     */
+    private const RESPONSE_REDACT_KEYS = [
+        'access_token',
+        'tracking_url',
+        'document',
+        'image_url',
+        'signature',
+        'signer_name',
+        'signer_relationship',
+        'proof_of_delivery',
+        'verification',
+        'dropoff',
+        'pickup',
+        'courier',
+        'point_of_contact',
+        'dropoff_name',
+        'dropoff_phone_number',
+        'dropoff_address',
+        'pickup_name',
+        'pickup_phone_number',
+        'pickup_address',
+        'phone_number',
+        'phone_details',
+        'email',
+    ];
+
+    /**
      * @var Uber $uber
      */
     protected Uber $uber;
@@ -89,7 +122,6 @@ class SourceSave
      * @param mixed $result
      * @param SourceInterface $source
      * @return void
-     * @throws Exception
      */
     public function afterExecute(Save $subject, $result, SourceInterface $source): void
     {
@@ -98,10 +130,30 @@ class SourceSave
             return;
         }
 
-        /**
-         * Sync Source
-         */
-        $syncSource = true;
+        try {
+            $this->syncSourceWithUber($source);
+        } catch (\Throwable $e) {
+            // A carrier problem must never abort the core MSI source save.
+            $this->helper->log('MSI CREATE Source in Uber ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Keep the Uber store mapping of the source in sync with its address.
+     *
+     * @param SourceInterface $source
+     * @return void
+     * @throws Exception
+     */
+    private function syncSourceWithUber(SourceInterface $source): void
+    {
+        $extensionAttributes = $source->getExtensionAttributes();
+        $organizationId = $extensionAttributes === null ? null : $extensionAttributes->getOrganizationId();
+        if ($organizationId === null || $organizationId === '') {
+            // The organization is only mandatory in the admin form; REST/CLI/import saves may omit it.
+            $this->helper->log("MSI Source {$source->getSourceCode()} has no Uber organization, skipping sync");
+            return;
+        }
 
         /**
          * Generate Hash Validation
@@ -111,75 +163,94 @@ class SourceSave
         /**
          * Get Store by Source Code
          */
-        $uberStore = $this->uberStore->getBySourceCode($source->getSourceCode());
-        if ($uberStore) {
-            // Compare Hash
-            $syncSource = $this->compareHash($storeHash, $uberStore->getHash());
-
-            // Delete Current Store
-            if ($syncSource) {
-                try {
-                    $this->uberStore->delete($uberStore);
-                } catch (CouldNotSaveException|StateException $e) {
-                    $this->helper->log('MSI Delete Source ' . $e->getMessage());
-                }
-            }
+        $currentUberStore = $this->uberStore->getBySourceCode($source->getSourceCode());
+        if ($currentUberStore && !$this->compareHash($storeHash, $currentUberStore->getHash())) {
+            // Address unchanged, the existing mapping is still valid
+            return;
         }
 
         /**
-         * Sync Store with Uber
+         * Create the new mapping BEFORE removing the previous one, so a failed registration can
+         * never leave the source without an Uber mapping.
          */
-        if ($syncSource) {
-            // Create new Store
-            try {
-                $uberStoreModel = $this->uberStoreInterfaceFactory->create();
-                $uberStoreModel->setHash($storeHash);
-                $uberStoreModel->setSourceCode($source->getSourceCode());
-                $this->uberStore->save($uberStoreModel);
+        $uberStoreModel = $this->uberStoreInterfaceFactory->create();
+        $uberStoreModel->setHash($storeHash);
+        $uberStoreModel->setSourceCode($source->getSourceCode());
+        $this->uberStore->save($uberStoreModel);
 
-                // Get Entity
-                $externalStoreId = $uberStoreModel->getId();
+        // Get Entity
+        $externalStoreId = $uberStoreModel->getId();
 
-                // Create in Uber
-                $addressData = json_encode([
-                    'street_address' => [$source->getStreet()],
-                    'city' => $source->getCity(),
-                    'state' => $source->getRegion(),
-                    'zip_code' => $source->getPostcode(),
-                    'country' => $source->getCountryId(),
-                ], JSON_UNESCAPED_SLASHES);
+        try {
+            // Create in Uber
+            $addressData = json_encode([
+                'street_address' => [$source->getStreet()],
+                'city' => $source->getCity(),
+                'state' => $source->getRegion(),
+                'zip_code' => $source->getPostcode(),
+                'country' => $source->getCountryId(),
+            ], JSON_UNESCAPED_SLASHES);
 
-                $requestData = [
-                    'pickup_address'    => $addressData,
-                    'dropoff_address'   => $addressData,
-                    'external_store_id' => $externalStoreId
-                ];
+            $requestData = [
+                'pickup_address'    => $addressData,
+                'dropoff_address'   => $addressData,
+                'external_store_id' => $externalStoreId
+            ];
 
-                // Send Request
-                $organizationData = $this->getOrganization($source->getExtensionAttributes()->getOrganizationId());
-                $organizationId = $organizationData['organizationId'];
-                $storeResponse = $this->uber->getEstimateShipping($requestData, $organizationId, $organizationData['websiteId']);
+            // Send Request
+            $organizationData = $this->getOrganization($organizationId);
+            $uberOrganizationId = $organizationData['organizationId'];
+            $storeResponse = $this->uber->getEstimateShipping(
+                $requestData,
+                $uberOrganizationId,
+                $organizationData['websiteId']
+            );
 
-                // Log Debug Mode
-                $this->helper->logDebug(" === Uber Create Store MSI === ");
-                $this->helper->logDebug("Organization ID / Customer ID: $organizationId");
-                $this->helper->logDebug("Source Code: {$source->getSourceCode()}");
-                $this->helper->logDebug("External Store ID: $externalStoreId");
-                $this->helper->logDebug("Payload: " . json_encode($requestData));
-                $this->helper->logDebug("Response: " . json_encode($storeResponse));
-            } catch (CouldNotSaveException $e) {
-                $this->helper->log('MSI CREATE Source in Uber ' . $e->getMessage());
-            }
+            // Log Debug Mode
+            $this->helper->logDebug(" === Uber Create Store MSI === ");
+            $this->helper->logDebug("Organization ID / Customer ID: $uberOrganizationId");
+            $this->helper->logDebug("Source Code: {$source->getSourceCode()}");
+            $this->helper->logDebug("External Store ID: $externalStoreId");
+            $this->helper->logDebug("Payload: " . json_encode($this->sanitizeRequestData($requestData)));
+            $this->helper->logDebug("Response: " . json_encode($this->sanitizeResponse($storeResponse)));
+        } catch (\Throwable $e) {
+            // Compensating write: drop the half-created mapping and keep the previous one.
+            $this->deleteUberStore($uberStoreModel, 'MSI Rollback Source in Uber ');
+            throw $e;
+        }
+
+        // Registration succeeded, the previous mapping can be dropped safely.
+        if ($currentUberStore) {
+            $this->deleteUberStore($currentUberStore, 'MSI Delete Source ');
         }
     }
 
     /**
-     * @return mixed|string
+     * @param mixed $uberStore
+     * @param string $logPrefix
+     * @return void
+     */
+    private function deleteUberStore($uberStore, string $logPrefix): void
+    {
+        try {
+            $this->uberStore->delete($uberStore);
+        } catch (CouldNotSaveException|StateException $e) {
+            $this->helper->log($logPrefix . $e->getMessage());
+        }
+    }
+
+    /**
+     * @param $organizationId
+     * @return array
      * @throws Exception
      */
-    private function getOrganization($organizationId)
+    private function getOrganization($organizationId): array
     {
-        if (str_contains($organizationId, 'W') !== false) {
+        if ($organizationId === null || $organizationId === '') {
+            throw new Exception(__("It was not possible to create the Waypoint in Uber. Try again later"));
+        }
+        $organizationId = (string)$organizationId;
+        if (str_contains($organizationId, 'W')) {
             // Use ROOT Organization from Shipping Configuration
             [$letter, $websiteId] = explode('W', $organizationId);
             return ['organizationId' => $this->helper->getCustomerId($websiteId, 'website'), 'websiteId' => (int)$websiteId];
@@ -190,6 +261,48 @@ class SourceSave
             throw new Exception(__("It was not possible to create the Waypoint in Uber. Try again later"));
         }
         return ['organizationId' => $organizationModel->getUberOrganizationId(), 'websiteId' => $organizationModel->getStoreId()];
+    }
+
+    /**
+     * Redact the source address before the payload reaches the log.
+     *
+     * @param array $requestData
+     * @return array
+     */
+    private function sanitizeRequestData(array $requestData): array
+    {
+        $sanitized = $requestData;
+        foreach (['pickup_address', 'dropoff_address'] as $addressKey) {
+            if (isset($sanitized[$addressKey])) {
+                $sanitized[$addressKey] = '***REDACTED***';
+            }
+        }
+        return $sanitized;
+    }
+
+    /**
+     * Recursively redact secrets and PII from an Uber response before it reaches the log.
+     *
+     * @param mixed $responseBody
+     * @return mixed
+     */
+    private function sanitizeResponse($responseBody)
+    {
+        if (!is_array($responseBody)) {
+            return $responseBody;
+        }
+
+        foreach ($responseBody as $key => $value) {
+            if (is_string($key) && in_array($key, self::RESPONSE_REDACT_KEYS, true)) {
+                $responseBody[$key] = '***REDACTED***';
+                continue;
+            }
+            if (is_array($value)) {
+                $responseBody[$key] = $this->sanitizeResponse($value);
+            }
+        }
+
+        return $responseBody;
     }
 
     /**

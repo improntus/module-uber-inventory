@@ -44,7 +44,7 @@ class SourceDataProvider
      */
     public function afterGetData(Subject $subject, array $result)
     {
-        if (!$result or isset($result['items'])) {
+        if (!$result || isset($result['items'])) {
             return $result;
         }
         $searchCriteria = $this->searchCriteriaBuilder
@@ -56,12 +56,13 @@ class SourceDataProvider
             $sourcesData[$source->getData('source_code')] = $source->getData();
         }
         foreach ($result as $sourceCode => &$tabs) {
-            if (isset($sourcesData[$sourceCode])) {
+            if (isset($sourcesData[$sourceCode]) && is_array($tabs)) {
                 $data = $sourcesData[$sourceCode];
                 unset($data['entity_id']);
                 unset($data['source_code']);
+                $currentAttributes = $tabs['general']['extension_attributes'] ?? [];
                 $tabs['general']['extension_attributes'] = array_merge(
-                    $tabs['general']['extension_attributes'],
+                    is_array($currentAttributes) ? $currentAttributes : [],
                     $data
                 );
             }

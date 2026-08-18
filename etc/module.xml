@@ -9,6 +9,10 @@
     <module name="Improntus_UberInventory">
         <sequence>
             <module name="Improntus_Uber"/>
+            <module name="Magento_Inventory"/>
+            <module name="Magento_InventoryApi"/>
+            <module name="Magento_InventoryAdminUi"/>
+            <module name="Magento_InventorySales"/>
         </sequence>
     </module>
 </config>

@@ -52,7 +52,7 @@
 
     <!-- Source Inventory -->
     <preference for="Improntus\UberInventory\Api\InventorySourceRepositoryInterface" type="Improntus\UberInventory\Model\InventorySourceRepository"/>
-    <preference for="Improntus\UberInventory\Api\Data\InventorySourceInterface" type="Improntus\UberInventory\Model\Source"/>
+    <preference for="Improntus\UberInventory\Api\Data\InventorySourceInterface" type="Improntus\UberInventory\Model\InventorySource"/>
     <preference for="Improntus\UberInventory\Api\Data\InventorySourceSearchResultInterface" type="Magento\Framework\Api\SearchResults"/>
 
     <type name="Improntus\UberInventory\Model\ResourceModel\Source\Collection">

@@ -7,7 +7,7 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Api/etc/extension_attributes.xsd">
     <extension_attributes for="Magento\InventoryApi\Api\Data\SourceInterface">
-        <attribute code="organization_id" type="integer"/>
+        <attribute code="organization_id" type="string"/>
         <attribute code="monday_open" type="string"/>
         <attribute code="monday_close" type="string"/>
         <attribute code="tuesday_open" type="string"/>

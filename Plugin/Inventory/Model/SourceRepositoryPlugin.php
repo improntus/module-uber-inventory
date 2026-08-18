@@ -6,61 +6,150 @@
 
 namespace Improntus\UberInventory\Plugin\Inventory\Model;
 
-use Improntus\UberInventory\Model\Source;
-use Improntus\UberInventory\Model\SourceFactory;
-use Magento\Framework\App\RequestInterface;
-use Magento\InventoryApi\Api\Data\SourceExtensionFactory;
+use Improntus\UberInventory\Api\Data\InventorySourceInterface;
+use Improntus\UberInventory\Api\Data\InventorySourceInterfaceFactory;
+use Improntus\UberInventory\Api\InventorySourceRepositoryInterface;
+use Magento\Framework\Exception\CouldNotSaveException;
+use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\Model\AbstractModel;
 use Magento\InventoryApi\Api\Data\SourceInterface;
-use Magento\InventoryApi\Api\Data\SourceSearchResultsInterface;
 use Magento\InventoryApi\Api\SourceRepositoryInterface;
+use Psr\Log\LoggerInterface;
 
 class SourceRepositoryPlugin
 {
     /**
-     * @var SourceExtensionFactory $extensionFactory
+     * Attributes this module owns, as declared in etc/extension_attributes.xml.
+     *
+     * Only these are persisted: entity_id and source_code are never writable from the payload,
+     * otherwise a save could be redirected onto a different source's row.
+     *
+     * @var array<string, string>
      */
-    protected $extensionFactory;
+    private const UBER_ATTRIBUTES = [
+        InventorySourceInterface::ORGANIZATION_ID => 'getOrganizationId',
+        InventorySourceInterface::MONDAY_OPEN => 'getMondayOpen',
+        InventorySourceInterface::MONDAY_CLOSE => 'getMondayClose',
+        InventorySourceInterface::TUESDAY_OPEN => 'getTuesdayOpen',
+        InventorySourceInterface::TUESDAY_CLOSE => 'getTuesdayClose',
+        InventorySourceInterface::WEDNESDAY_OPEN => 'getWednesdayOpen',
+        InventorySourceInterface::WEDNESDAY_CLOSE => 'getWednesdayClose',
+        InventorySourceInterface::THURSDAY_OPEN => 'getThursdayOpen',
+        InventorySourceInterface::THURSDAY_CLOSE => 'getThursdayClose',
+        InventorySourceInterface::FRIDAY_OPEN => 'getFridayOpen',
+        InventorySourceInterface::FRIDAY_CLOSE => 'getFridayClose',
+        InventorySourceInterface::SATURDAY_OPEN => 'getSaturdayOpen',
+        InventorySourceInterface::SATURDAY_CLOSE => 'getSaturdayClose',
+        InventorySourceInterface::SUNDAY_OPEN => 'getSundayOpen',
+        InventorySourceInterface::SUNDAY_CLOSE => 'getSundayClose',
+    ];
 
     /**
-     * @var SourceFactory $sourceFactory
+     * @var InventorySourceRepositoryInterface $inventorySourceRepository
      */
-    protected SourceFactory $sourceFactory;
+    protected InventorySourceRepositoryInterface $inventorySourceRepository;
 
     /**
-     * @var RequestInterface
+     * @var InventorySourceInterfaceFactory $inventorySourceFactory
      */
-    protected RequestInterface $request;
+    protected InventorySourceInterfaceFactory $inventorySourceFactory;
 
     /**
-     * @param SourceExtensionFactory $extensionFactory
-     * @param SourceFactory $sourceFactory
-     * @param RequestInterface $request
+     * @var LoggerInterface $logger
+     */
+    protected LoggerInterface $logger;
+
+    /**
+     * @param InventorySourceRepositoryInterface $inventorySourceRepository
+     * @param InventorySourceInterfaceFactory $inventorySourceFactory
+     * @param LoggerInterface $logger
      */
     public function __construct(
-        SourceExtensionFactory $extensionFactory,
-        SourceFactory          $sourceFactory,
-        RequestInterface       $request
+        InventorySourceRepositoryInterface $inventorySourceRepository,
+        InventorySourceInterfaceFactory    $inventorySourceFactory,
+        LoggerInterface                    $logger
     ) {
-        $this->extensionFactory = $extensionFactory;
-        $this->sourceFactory = $sourceFactory;
-        $this->request = $request;
+        $this->inventorySourceRepository = $inventorySourceRepository;
+        $this->inventorySourceFactory = $inventorySourceFactory;
+        $this->logger = $logger;
     }
 
-    public function beforeSave(
+    /**
+     * Persist the Uber attributes once the core source has been saved.
+     *
+     * @param SourceRepositoryInterface $subject
+     * @param mixed $result
+     * @param SourceInterface $source
+     * @return mixed
+     */
+    public function afterSave(
         SourceRepositoryInterface $subject,
+        $result,
         SourceInterface           $source
     ) {
-        $generalTab = $this->request->getParam('general');
-        $extensionAttributes = $generalTab['extension_attributes'] ?? [];
-        /** @var Source $sourceData */
-        $sourceData = $this->sourceFactory->create();
-        $sourceData->load($source->getSourceCode(), 'source_code');
-        $sourceData->setData('source_code', $source->getSourceCode());
-        foreach ($extensionAttributes as $attribute => $value) {
-            $sourceData->setData($attribute, $value);
+        $values = $this->extractUberAttributes($source);
+        if ($values === []) {
+            return $result;
         }
-        $sourceData->save();
 
-        return [$source];
+        $sourceCode = $source->getSourceCode();
+
+        try {
+            /** @var InventorySourceInterface|AbstractModel $inventorySource */
+            $inventorySource = $this->getInventorySource($sourceCode);
+            $inventorySource->setSourceCode($sourceCode);
+            foreach ($values as $attribute => $value) {
+                $inventorySource->setData($attribute, $value);
+            }
+            $this->inventorySourceRepository->save($inventorySource);
+        } catch (CouldNotSaveException $e) {
+            $this->logger->error(
+                'Could not save the Uber attributes of the inventory source.',
+                ['source_code' => $sourceCode, 'message' => $e->getMessage()]
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Read only the attributes declared in etc/extension_attributes.xml.
+     *
+     * @param SourceInterface $source
+     * @return array
+     */
+    private function extractUberAttributes(SourceInterface $source): array
+    {
+        $extensionAttributes = $source->getExtensionAttributes();
+        if ($extensionAttributes === null) {
+            return [];
+        }
+
+        $values = [];
+        foreach (self::UBER_ATTRIBUTES as $attribute => $getter) {
+            if (!method_exists($extensionAttributes, $getter)) {
+                continue;
+            }
+            $value = $extensionAttributes->{$getter}();
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $values[$attribute] = $value;
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param string $sourceCode
+     * @return InventorySourceInterface
+     */
+    private function getInventorySource(string $sourceCode): InventorySourceInterface
+    {
+        try {
+            return $this->inventorySourceRepository->getBySourceCode($sourceCode);
+        } catch (NoSuchEntityException $e) {
+            return $this->inventorySourceFactory->create();
+        }
     }
 }
